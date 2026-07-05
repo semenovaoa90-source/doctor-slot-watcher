@@ -24,10 +24,7 @@ def save_state(state):
 
 def send_telegram(text):
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
-    requests.post(url, data={
-        "chat_id": CHAT_ID,
-        "text": text
-    })
+    requests.post(url, data={"chat_id": CHAT_ID, "text": text})
 
 
 def fetch_page():
@@ -40,16 +37,27 @@ def fetch_page():
 
 def extract_slots(html):
     soup = BeautifulSoup(html, "html.parser")
-    text = soup.get_text(" ", strip=True).lower()
 
-    keywords = ["записаться", "свободно", "есть запись", "выбрать время"]
+    # убираем лишние пробелы и приводим к одному тексту
+    text = " ".join(soup.stripped_strings).lower()
 
-    slots_found = []
-    for kw in keywords:
-        if kw in text:
-            slots_found.append(kw)
+    # реальные признаки доступной записи
+    # (под ProDoctorov обычно встречается именно "свободно" + даты/время)
+    keywords = ["свободно", "запись", "записаться", "выбрать дату", "время приема"]
 
-    return slots_found
+    found = []
+
+    for k in keywords:
+        if k in text:
+            found.append(k)
+
+    # дополнительно: пытаемся вытащить куски с датами/временем
+    # (очень грубая, но рабочая эвристика)
+    for part in text.split():
+        if ":" in part and len(part) <= 5:
+            found.append(part)
+
+    return list(set(found))
 
 
 def main():
@@ -58,13 +66,18 @@ def main():
     html = fetch_page()
     slots = extract_slots(html)
 
+    # если вообще ничего не найдено — выходим тихо
+    if not slots:
+        return
+
+    # проверка на новые события
     new_slots = [s for s in slots if s not in state["slots"]]
 
     if new_slots:
         message = (
-            "🔔 Найдена запись к врачу\n\n"
-            f"Ссылка: {URL}\n"
-            f"Детали: {', '.join(new_slots)}"
+            "🔔 Найдены изменения в записи к врачу\n\n"
+            f"{URL}\n\n"
+            "Детали:\n- " + "\n- ".join(new_slots)
         )
         send_telegram(message)
 
