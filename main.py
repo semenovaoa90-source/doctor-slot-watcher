@@ -1,7 +1,7 @@
 import os
+import re
 import json
 import requests
-from bs4 import BeautifulSoup
 
 URL = "https://prodoctorov.ru/nnovgorod/vrach/1032093-ivanova/"
 STATE_FILE = "state.json"
@@ -11,79 +11,68 @@ CHAT_ID = os.getenv("CHAT_ID")
 
 
 def load_state():
-    if not os.path.exists(STATE_FILE):
-        return {"slots": []}
-    with open(STATE_FILE, "r") as f:
-        return json.load(f)
+    if os.path.exists(STATE_FILE):
+        with open(STATE_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+    return {
+        "nearest": "",
+        "has_slots": False
+    }
 
 
 def save_state(state):
-    with open(STATE_FILE, "w") as f:
-        json.dump(state, f)
+    with open(STATE_FILE, "w", encoding="utf-8") as f:
+        json.dump(state, f, ensure_ascii=False, indent=2)
 
 
-def send_telegram(text):
-    url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
-    requests.post(url, data={"chat_id": CHAT_ID, "text": text})
+def send_message(text):
+    requests.post(
+        f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
+        data={
+            "chat_id": CHAT_ID,
+            "text": text
+        },
+        timeout=20
+    )
 
 
-def fetch_page():
-    headers = {
-        "User-Agent": "Mozilla/5.0"
-    }
-    r = requests.get(URL, headers=headers, timeout=20)
-    return r.text
+headers = {
+    "User-Agent": "Mozilla/5.0"
+}
 
+html = requests.get(URL, headers=headers, timeout=30).text
 
-def extract_slots(html):
-    soup = BeautifulSoup(html, "html.parser")
+m_slot = re.search(r'"has_slots":(true|false)', html)
+m_date = re.search(
+    r'"nearest_appointment_express_datetime":"([^"]*)"',
+    html
+)
 
-    # убираем лишние пробелы и приводим к одному тексту
-    text = " ".join(soup.stripped_strings).lower()
+has_slots = False
+nearest = ""
 
-    # реальные признаки доступной записи
-    # (под ProDoctorov обычно встречается именно "свободно" + даты/время)
-    keywords = ["свободно", "запись", "записаться", "выбрать дату", "время приема"]
+if m_slot:
+    has_slots = m_slot.group(1) == "true"
 
-    found = []
+if m_date:
+    nearest = m_date.group(1)
 
-    for k in keywords:
-        if k in text:
-            found.append(k)
+state = load_state()
 
-    # дополнительно: пытаемся вытащить куски с датами/временем
-    # (очень грубая, но рабочая эвристика)
-    for part in text.split():
-        if ":" in part and len(part) <= 5:
-            found.append(part)
+if (
+    has_slots != state["has_slots"]
+    or nearest != state["nearest"]
+):
+    text = (
+        "🔔 Изменения записи к врачу\n\n"
+        f"Свободные слоты: {'Да' if has_slots else 'Нет'}\n"
+        f"Ближайшая запись: {nearest if nearest else 'нет'}\n\n"
+        f"{URL}"
+    )
 
-    return list(set(found))
+    send_message(text)
 
-
-def main():
-    state = load_state()
-
-    html = fetch_page()
-    slots = extract_slots(html)
-
-    # если вообще ничего не найдено — выходим тихо
-    if not slots:
-        return
-
-    # проверка на новые события
-    new_slots = [s for s in slots if s not in state["slots"]]
-
-    if new_slots:
-        message = (
-            "🔔 Найдены изменения в записи к врачу\n\n"
-            f"{URL}\n\n"
-            "Детали:\n- " + "\n- ".join(new_slots)
-        )
-        send_telegram(message)
-
-        state["slots"] = slots
-        save_state(state)
-
-
-if __name__ == "__main__":
-    main()
+    save_state({
+        "has_slots": has_slots,
+        "nearest": nearest
+    })
