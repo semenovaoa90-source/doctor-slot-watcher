@@ -1,39 +1,19 @@
-import os
-import re
-import requests
+import traceback
 
-URL = "https://prodoctorov.ru/nnovgorod/vrach/1032093-ivanova/"
+print("СТАРТ")
 
-BOT_TOKEN = os.getenv("BOT_TOKEN")
-CHAT_ID = os.getenv("CHAT_ID")
+try:
+    import os
+    import requests
 
-headers = {
-    "User-Agent": "Mozilla/5.0"
-}
+    print("IMPORT OK")
+    print("BOT:", repr(os.getenv("BOT_TOKEN")))
+    print("CHAT:", repr(os.getenv("CHAT_ID")))
 
-r = requests.get(URL, headers=headers, timeout=30)
-html = r.text
+    r = requests.get("https://prodoctorov.ru/nnovgorod/vrach/1032093-ivanova/", timeout=30)
 
-m = re.search(
-    r'"nearest_appointment_express_datetime":"([^"]+)"',
-    html
-)
+    print("STATUS:", r.status_code)
+    print("LEN:", len(r.text))
 
-if m:
-    text = (
-        "Найдена ближайшая запись:\n"
-        + m.group(1)
-        + "\n\n"
-        + URL
-    )
-else:
-    text = "Поле nearest_appointment_express_datetime не найдено."
-
-requests.post(
-    f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
-    data={
-        "chat_id": CHAT_ID,
-        "text": text
-    },
-    timeout=20,
-)
+except Exception:
+    traceback.print_exc()
