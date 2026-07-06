@@ -10,22 +10,25 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repo
+      - name: checkout
         uses: actions/checkout@v4
 
-      - name: Setup Python
+      - name: setup python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
-      - name: Install dependencies
+      - name: install
         run: pip install requests
 
-      - name: Run script
+      - name: debug start
+        run: echo "START OK"
+
+      - name: run script
         env:
           BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
           CHAT_ID: ${{ secrets.CHAT_ID }}
         run: python main.py
 
-      - name: Debug step (always prints)
-        run: echo "WORKFLOW FINISHED"
+      - name: debug end
+        run: echo "END OK"
