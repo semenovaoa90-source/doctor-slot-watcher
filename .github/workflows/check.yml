@@ -2,33 +2,23 @@ name: doctor-slot-check
 
 on:
   workflow_dispatch:
-  schedule:
-    - cron: "*/10 * * * *"
 
 jobs:
-  check:
+  debug:
     runs-on: ubuntu-latest
 
     steps:
       - name: checkout
         uses: actions/checkout@v4
 
-      - name: setup python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
+      - name: show files
+        run: ls -la
 
-      - name: install
-        run: pip install requests
+      - name: show repo structure
+        run: find .
 
-      - name: debug start
-        run: echo "START OK"
+      - name: show main.py content
+        run: cat main.py
 
-      - name: run script
-        env:
-          BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
-          CHAT_ID: ${{ secrets.CHAT_ID }}
+      - name: run python
         run: python main.py
-
-      - name: debug end
-        run: echo "END OK"
