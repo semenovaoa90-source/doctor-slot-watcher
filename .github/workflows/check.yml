@@ -2,23 +2,25 @@ name: doctor-slot-check
 
 on:
   workflow_dispatch:
+  schedule:
+    - cron: "*/10 * * * *"
 
 jobs:
-  debug:
+  check:
     runs-on: ubuntu-latest
 
     steps:
-      - name: checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: show files
-        run: ls -la
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
 
-      - name: show repo structure
-        run: find .
+      - run: pip install requests playwright
 
-      - name: show main.py content
-        run: cat main.py
+      - run: python -m playwright install chromium
 
-      - name: run python
-        run: python main.py
+      - run: python main.py
+        env:
+          BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+          CHAT_ID: ${{ secrets.CHAT_ID }}
