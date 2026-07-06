@@ -1,19 +1,23 @@
-import traceback
+import os
+import requests
 
-print("СТАРТ")
+URL = "https://prodoctorov.ru/nnovgorod/vrach/1032093-ivanova/"
 
-try:
-    import os
-    import requests
+BOT_TOKEN = os.getenv("BOT_TOKEN")
+CHAT_ID = os.getenv("CHAT_ID")
 
-    print("IMPORT OK")
-    print("BOT:", repr(os.getenv("BOT_TOKEN")))
-    print("CHAT:", repr(os.getenv("CHAT_ID")))
+def send(text):
+    requests.post(
+        f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
+        data={"chat_id": CHAT_ID, "text": text[:4000]},
+        timeout=20
+    )
 
-    r = requests.get("https://prodoctorov.ru/nnovgorod/vrach/1032093-ivanova/", timeout=30)
+r = requests.get(URL, headers={"User-Agent": "Mozilla/5.0"}, timeout=30)
+html = r.text
 
-    print("STATUS:", r.status_code)
-    print("LEN:", len(r.text))
-
-except Exception:
-    traceback.print_exc()
+# простая проверка — меняется ли страница
+if "врач" in html.lower():
+    send("Бот работает. Страница доступна.\n" + URL)
+else:
+    send("Страница не загрузилась")
